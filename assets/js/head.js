@@ -8,5 +8,5 @@
   add('link', { rel: 'preconnect', href: 'https://fonts.googleapis.com' });
   add('link', { rel: 'preconnect', href: 'https://fonts.gstatic.com', crossorigin: '' });
   add('link', { rel: 'stylesheet', href: 'https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Lobster&family=Space+Grotesk:wght@400;500;600;700&display=swap' });
-  add('link', { rel: 'stylesheet', href: 'assets/css/style.css?v=20260915g' });
+  add('link', { rel: 'stylesheet', href: 'assets/css/style.css?v=20260915h' });
 })();
