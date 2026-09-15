@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Admin | Escape Cartel</title>
+  <meta name="robots" content="noindex">
+  <script src="assets/js/head.js?v=20260915d"></script>
+  <script src="assets/js/config.js?v=20260915d"></script>
+  <script src="assets/js/data.js?v=20260915d"></script>
+  <script src="assets/js/app.js?v=20260915d" defer></script>
+</head>
+<body>
+<section class="page-hero" style="padding:48px 0 32px"><div class="wrap"><span class="eyebrow">Cartel HQ</span><h1 class="display" style="font-size:clamp(44px,7vw,84px);margin-top:10px">Admin.</h1><p>Bookings, payment verification, requests, and site settings (WhatsApp number, UPI ID, QR image).</p><div class="dim" id="mode" style="font-size:12px;margin-top:8px"></div></div></section>
+<section class="section-tight"><div class="wrap" id="root"></div></section>
+<script>
+document.addEventListener('app:ready', () => {
+  const { $, $$, esc, inr, admin, toast, C, waLink } = App;
+  const root = $('#root');
+  $('#mode').textContent = App.online ? '● Connected to live backend' : '○ Demo mode — data stored in this browser only';
+
+  if (!admin.ok()) {
+    root.innerHTML = `<div class="panel" style="max-width:420px"><h2>Enter PIN</h2><div class="field"><label>Admin PIN</label><input id="pin" type="password" inputmode="numeric" placeholder="••••"><div class="hint">Set via ADMIN_PIN env var (or assets/js/config.js)</div></div><div class="notice bad" id="err" style="display:none;margin-top:12px"></div><button class="btn btn-red btn-block" id="go" style="margin-top:16px">Open HQ</button></div>`;
+    const go = async () => { try { await admin.login($('#pin').value); location.reload(); } catch (e) { $('#err').style.display = ''; $('#err').textContent = e.message; } };
+    $('#go').onclick = go; $('#pin').onkeydown = e => { if (e.key === 'Enter') go(); };
+    return;
+  }
+
+  let cache = [];
+  const fail = (e) => { toast(e.message || 'Error'); if (e.status === 401) { admin.logout(); setTimeout(() => location.reload(), 800); } };
+
+  function kpis(all) {
+    const conf = all.filter(b => b.status === 'confirmed'), pend = all.filter(b => b.status === 'pending');
+    return `<div class="kpis"><div class="kpi"><b>${all.length}</b><span>Bookings</span></div><div class="kpi"><b style="color:var(--amber)">${pend.length}</b><span>Pending verify</span></div><div class="kpi"><b style="color:var(--green)">${conf.length}</b><span>Confirmed</span></div><div class="kpi"><b>${inr(conf.reduce((a, b) => a + b.amount, 0))}</b><span>Verified revenue</span></div></div>`;
+  }
+
+  function rows(q) {
+    q = (q || '').toLowerCase();
+    const list = cache.filter(b => !q || [b.id, b.name, b.utr, b.tripName, b.phone].join(' ').toLowerCase().includes(q));
+    $('#rows').innerHTML = list.map(b => `<tr><td><b>${esc(b.id)}</b><div class="dim" style="font-size:11px">${new Date(b.created).toLocaleString('en-IN')}</div></td><td>${esc(b.tripName)}</td><td>${esc(b.name)}${b.seats > 1 ? ` <span class="dim">+${b.seats - 1}</span>` : ''}</td><td><a class="red" target="_blank" href="https://wa.me/91${String(b.phone).replace(/\D/g, '').slice(-10)}?text=${encodeURIComponent(`Hi ${b.name}! Escape Cartel here about booking ${b.id} (${b.tripName}).`)}">${esc(b.phone)}</a></td><td>${b.seats}</td><td>${inr(b.amount)}</td><td style="font-family:monospace">${esc(b.utr)}</td><td>${b.hasShot ? `<button class="chip" style="padding:4px 10px" data-shot="${b.id}">View</button>` : '—'}</td><td><span class="status ${b.status}">${b.status}</span></td><td style="display:flex;gap:6px">${b.status !== 'confirmed' ? `<button class="btn btn-sm" style="background:var(--green);color:#052e16" data-ok="${b.id}">Confirm</button>` : ''}${b.status !== 'cancelled' ? `<button class="btn btn-ghost btn-sm" data-x="${b.id}">Cancel</button>` : ''}<button class="btn btn-ghost btn-sm" data-view="${b.id}">Details</button></td></tr>`).join('') || `<tr><td colspan="10" class="dim">No matches</td></tr>`;
+    $$('[data-ok]').forEach(b => b.onclick = () => admin.setStatus(b.dataset.ok, 'confirmed').then(() => { toast('Confirmed'); render('bookings'); }).catch(fail));
+    $$('[data-x]').forEach(b => b.onclick = () => { if (confirm('Cancel booking ' + b.dataset.x + '?')) admin.setStatus(b.dataset.x, 'cancelled').then(() => render('bookings')).catch(fail); });
+    $$('[data-shot]').forEach(b => b.onclick = () => { const w = window.open(); w.document.write(`<body style="margin:0;background:#000;display:grid;place-items:center;min-height:100vh"><img src="${admin.shotUrl(b.dataset.shot)}" style="max-width:100%;max-height:100vh"></body>`); });
+    $$('[data-view]').forEach(b => b.onclick = () => { const bk = cache.find(x => x.id === b.dataset.view); alert(`Booking ${bk.id}\nTrip: ${bk.tripName} (${bk.dateText})\nPickup: ${bk.pickup}\nEmail: ${bk.email}\nNotes: ${bk.notes || '—'}\n\nTravellers:\n` + (bk.travellers || []).map((t, i) => `${i + 1}. ${t.name} — ${t.phone}`).join('\n')); });
+  }
+
+  async function tabBookings(el) {
+    el.innerHTML = '<div class="notice">Loading…</div>';
+    try { cache = await admin.bookings(); } catch (e) { el.innerHTML = `<div class="notice bad">${esc(e.message)}</div>`; return fail(e); }
+    el.innerHTML = `${kpis(cache)}<div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:14px"><input id="q" placeholder="Search name / ID / UTR / trip" style="flex:1;min-width:220px;padding:12px 14px;border-radius:10px;border:1px solid var(--line-2);background:var(--bg-3);color:#fff"><button class="btn btn-ghost btn-sm" id="csv">Export CSV</button></div>
+      <div class="table-wrap"><table><thead><tr><th>ID</th><th>Trip</th><th>Name</th><th>Phone</th><th>Seats</th><th>Amount</th><th>UTR</th><th>Shot</th><th>Status</th><th>Actions</th></tr></thead><tbody id="rows"></tbody></table></div>
+      ${cache.length ? '' : '<div class="notice" style="margin-top:14px">No bookings yet. They appear here the moment someone completes the payment step.</div>'}`;
+    rows(''); $('#q').oninput = e => rows(e.target.value);
+    $('#csv').onclick = () => { const head = ['id', 'created', 'status', 'tripName', 'dateText', 'name', 'phone', 'email', 'seats', 'amount', 'utr', 'pickup', 'notes', 'travellers'];
+      const csv = [head.join(',')].concat(cache.map(b => head.map(k => `"${String(k === 'travellers' ? (b.travellers || []).map(t => t.name + ' ' + t.phone).join('; ') : (b[k] ?? '')).replace(/"/g, '""')}"`).join(','))).join('\n');
+      const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' })); a.download = 'escape-cartel-bookings.csv'; a.click(); };
+  }
+
+  async function tabRequests(el) {
+    el.innerHTML = '<div class="notice">Loading…</div>';
+    let list = []; try { list = await admin.requests(); } catch (e) { return fail(e); }
+    el.innerHTML = `<div class="notice" style="margin-bottom:14px">Questions sent from the "Want to join us?" form on trip pages. They also arrive on WhatsApp.</div><div class="table-wrap"><table><thead><tr><th>When</th><th>Name</th><th>Phone</th><th>Trip</th><th>Message</th></tr></thead><tbody>${list.map(r => `<tr><td>${new Date(r.created).toLocaleString('en-IN')}</td><td>${esc(r.name)}</td><td><a class="red" target="_blank" href="https://wa.me/91${String(r.phone).replace(/\D/g, '').slice(-10)}">${esc(r.phone)}</a></td><td>${esc(r.tripName || '—')}</td><td style="white-space:normal;max-width:360px">${esc(r.message || '—')}</td></tr>`).join('') || '<tr><td colspan="5" class="dim">No requests yet</td></tr>'}</tbody></table></div>`;
+  }
+
+  function tabTrips(el) {
+    el.innerHTML = `<div class="notice" style="margin-bottom:16px">Trips live in <code>assets/js/data.js</code> (edit, commit, redeploy). Below is live occupancy = base <code>booked</code> + confirmed/pending site bookings.</div><div class="table-wrap"><table><thead><tr><th>Trip</th><th>Date</th><th>Group</th><th>Price</th><th>Booked</th><th>Left</th><th>Filled</th></tr></thead><tbody>${window.EC_TRIPS.map(t => `<tr><td><a class="red" href="trip.html?id=${t.id}">${esc(t.name)}</a></td><td>${esc(t.dateText)}</td><td>${t.group}</td><td>${t.price ? inr(t.price) : '—'}</td><td>${App.bookedCount(t)} / ${t.slots}</td><td>${App.slotsLeft(t)}</td><td><div class="progress" style="width:120px"><i style="width:${App.pctFilled(t)}%"></i></div></td></tr>`).join('')}</tbody></table></div>`;
+  }
+
+  async function tabSettings(el) {
+    el.innerHTML = '<div class="notice">Loading…</div>';
+    let c; try { c = await admin.getConfig(); } catch (e) { return fail(e); }
+    el.innerHTML = `<div class="grid grid-2"><div class="panel"><h2>Contact & payments</h2><div class="form">
+      <div class="field"><label>WhatsApp number (digits only, with country code)</label><input id="s-wa" value="${esc(c.WHATSAPP_NUMBER || '')}" placeholder="919876543210"><div class="hint">Powers every WhatsApp button on the site.</div></div>
+      <div class="field"><label>UPI ID</label><input id="s-upi" value="${esc(c.UPI_ID || '')}" placeholder="yourname@upi"></div>
+      <div class="field"><label>UPI display name</label><input id="s-upiname" value="${esc(c.UPI_NAME || '')}"></div>
+      <div class="row-2"><div class="field"><label>Email</label><input id="s-email" value="${esc(c.EMAIL || '')}"></div><div class="field"><label>Phone (display)</label><input id="s-phone" value="${esc(c.PHONE || '')}"></div></div>
+      <div class="field"><label>Instagram URL</label><input id="s-ig" value="${esc(c.INSTAGRAM || '')}"></div>
+      <button class="btn btn-red" id="s-save">Save settings</button>
+      <div class="hint dim">${App.online ? 'Saved on the server — applies to every visitor instantly.' : 'Demo mode: saved in this browser only.'}</div></div></div>
+      <div class="panel"><h2>Payment QR</h2><p class="muted" style="margin-top:0">By default the checkout generates a QR from your UPI ID. Upload your own QR photo (from GPay / PhonePe / Paytm) to use that instead.</p>
+      <div class="upload" id="qr-drop"><input type="file" id="qr-file" accept="image/*" hidden><div id="qr-txt">📎 Click to upload QR image</div>${c.QR_IMAGE_DATA || c.QR_IMAGE ? `<img src="${c.QR_IMAGE_DATA || c.QR_IMAGE}" alt="">` : ''}</div>
+      <div style="display:flex;gap:8px;margin-top:12px"><button class="btn btn-ghost btn-sm" id="qr-clear">Remove custom QR (auto-generate)</button></div>
+      <h2 style="margin-top:32px">Danger zone</h2><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn btn-ghost btn-sm" id="wipe-b">Clear all bookings</button><button class="btn btn-ghost btn-sm" id="wipe-u">Clear all users</button><button class="btn btn-ghost btn-sm" id="lock">Lock admin</button></div></div></div>`;
+    $('#s-save').onclick = () => admin.setConfig({ WHATSAPP_NUMBER: $('#s-wa').value.replace(/\D/g, ''), UPI_ID: $('#s-upi').value.trim(), UPI_NAME: $('#s-upiname').value.trim(), EMAIL: $('#s-email').value.trim(), PHONE: $('#s-phone').value.trim(), INSTAGRAM: $('#s-ig').value.trim() }).then(() => { toast('Saved'); render('settings'); }).catch(fail);
+    const drop = $('#qr-drop'), file = $('#qr-file'); drop.onclick = () => file.click();
+    file.onchange = () => { const f = file.files[0]; if (!f) return; if (f.size > 2.5e6) return toast('Image too big — keep it under 2.5 MB'); const r = new FileReader(); r.onload = () => admin.setConfig({ QR_IMAGE_DATA: r.result }).then(() => { toast('QR saved'); render('settings'); }).catch(fail); r.readAsDataURL(f); };
+    $('#qr-clear').onclick = () => admin.setConfig({ QR_IMAGE_DATA: '' }).then(() => { toast('Using auto-generated QR'); render('settings'); }).catch(fail);
+    $('#wipe-b').onclick = () => { if (confirm('Delete ALL bookings? This cannot be undone.')) admin.clearBookings().then(() => toast('Bookings cleared')).catch(fail); };
+    $('#wipe-u').onclick = () => { if (confirm('Delete ALL user accounts? This cannot be undone.')) admin.clearUsers().then(() => toast('Users cleared')).catch(fail); };
+    $('#lock').onclick = () => { admin.logout(); location.reload(); };
+  }
+
+  function render(tab) {
+    root.innerHTML = `<div class="tabs">${[['bookings', 'Bookings'], ['requests', 'Requests'], ['trips', 'Trips'], ['settings', 'Settings']].map(t => `<button class="${t[0] === tab ? 'active' : ''}" data-t="${t[0]}">${t[1]}</button>`).join('')}</div><div id="tab"></div>`;
+    $$('.tabs button').forEach(b => b.onclick = () => render(b.dataset.t));
+    const el = $('#tab');
+    ({ bookings: tabBookings, requests: tabRequests, trips: tabTrips, settings: tabSettings })[tab](el);
+  }
+  render('bookings');
+});
+</script>
+</body>
+</html>

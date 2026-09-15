@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>My Bookings | Escape Cartel</title>
+  <script src="assets/js/head.js?v=20260915d"></script>
+  <script src="assets/js/config.js?v=20260915d"></script>
+  <script src="assets/js/data.js?v=20260915d"></script>
+  <script src="assets/js/app.js?v=20260915d" defer></script>
+</head>
+<body>
+<section class="page-hero" style="padding:56px 0 36px"><div class="wrap" style="display:flex;justify-content:space-between;align-items:flex-end;gap:20px;flex-wrap:wrap"><div><span class="eyebrow">Cartel member</span><h1 class="display" style="font-size:clamp(44px,7vw,84px);margin-top:10px" id="hello">Hey.</h1><p id="sub"></p></div><div style="display:flex;gap:10px"><a class="btn btn-red" href="trips.html">Book a trip</a><button class="btn btn-ghost" id="logout">Log out</button></div></div></section>
+<section class="section-tight"><div class="wrap">
+  <div class="kpis" id="kpis"></div>
+  <div class="tabs"><button class="active" data-t="up">Upcoming</button><button data-t="past">Past</button><button data-t="profile">Profile</button></div>
+  <div id="content"></div>
+</div></section>
+<script>
+document.addEventListener('app:ready', async () => {
+  const { $, $$, auth, myBookings, esc, inr, trip, waLink, toast } = App;
+  const u = auth.current(); if (!u) { location.href = 'login.html?next=dashboard.html'; return; }
+  $('#hello').innerHTML = `Hey, <span class="red">${esc(u.name.split(' ')[0])}.</span>`;
+  $('#sub').textContent = u.college ? `${u.college} · ${u.email}` : u.email;
+  $('#logout').onclick = auth.logout;
+  $('#content').innerHTML = '<div class="notice">Loading your bookings…</div>';
+  let mine = [];
+  try { mine = await myBookings(); } catch (e) { $('#content').innerHTML = `<div class="notice bad">${esc(e.message)}</div>`; if (e.status === 401) { auth.logout(); } return; }
+  const now = new Date();
+  const isPast = b => { const t = trip(b.tripId); return t ? new Date(t.end) < now : false; };
+  const up = mine.filter(b => !isPast(b) && b.status !== 'cancelled'), past = mine.filter(b => isPast(b) || b.status === 'cancelled');
+  const spent = mine.filter(b => b.status !== 'cancelled').reduce((a, b) => a + b.amount, 0);
+  $('#kpis').innerHTML = [[up.length, 'Upcoming'], [past.filter(b => b.status !== 'cancelled').length, 'Trips done'], [inr(spent), 'Invested'], [mine.reduce((a, b) => a + b.seats, 0), 'Seats booked']].map(k => `<div class="kpi"><b>${k[0]}</b><span>${k[1]}</span></div>`).join('');
+
+  const card = b => { const t = trip(b.tripId); const st = b.status; return `<div class="panel rv" style="display:grid;grid-template-columns:120px 1fr auto;gap:20px;align-items:center;margin-bottom:14px">
+    <div style="border-radius:12px;overflow:hidden;aspect-ratio:4/3">${t ? App.imgTag(t.image, t.seed, t.name) : ''}</div>
+    <div><span class="status ${st}">● ${st === 'pending' ? 'Pending verification' : st}</span><h3 class="display" style="font-size:28px;margin:8px 0 2px">${esc(b.tripName)}</h3><div class="muted" style="font-size:13px">${esc(b.dateText)} · ${b.seats} seat${b.seats > 1 ? 's' : ''} · ${inr(b.amount)} · ID ${esc(b.id)}</div>${t && st !== 'cancelled' ? `<div class="red" style="font-size:12px;font-weight:700;margin-top:6px" data-cd="${t.start}"></div>` : ''}</div>
+    <div style="display:grid;gap:8px">${t ? `<a class="btn btn-ghost btn-sm" href="trip.html?id=${t.id}">Trip page</a>` : ''}${st === 'pending' ? `<a class="btn btn-wa btn-sm" target="_blank" rel="noopener" href="${waLink(`Hi! Following up on booking ${b.id} for ${b.tripName}. UTR: ${b.utr}. Please verify.`)}">Chase on WhatsApp</a>` : ''}${st !== 'cancelled' && !isPast(b) ? `<button class="btn btn-ghost btn-sm" data-swap="${b.id}">Swap seat to friend</button>` : ''}${st === 'confirmed' && isPast(b) ? `<button class="btn btn-red btn-sm" data-review="${b.id}">Leave a review</button>` : ''}</div></div>`; };
+
+  function render(tab) {
+    if (tab === 'up') $('#content').innerHTML = up.length ? up.map(card).join('') : `<div class="notice" style="text-align:center;padding:48px"><div style="font-size:36px">🎒</div><h3 class="display" style="font-size:30px;margin:8px 0">No upcoming escapes</h3><p class="dim">The cartel is leaving without you. Fix that.</p><a class="btn btn-red" href="trips.html">Browse trips</a></div>`;
+    if (tab === 'past') $('#content').innerHTML = past.length ? past.map(card).join('') : `<div class="notice" style="text-align:center;padding:40px">No past trips yet. Your first one is the hardest to book — after that it's a habit.</div>`;
+    if (tab === 'profile') { const full = u; $('#content').innerHTML = `<div class="panel" style="max-width:640px"><h2>Profile</h2><div class="grid grid-2"><div class="fact"><span>Name</span><b>${esc(full.name)}</b></div><div class="fact"><span>Email</span><b>${esc(full.email)}</b></div><div class="fact"><span>Phone</span><b>${esc(full.phone)}</b></div><div class="fact"><span>College</span><b>${esc(full.college || '—')}</b></div><div class="fact"><span>Year</span><b>${esc(full.year || '—')}</b></div><div class="fact"><span>Cartel Crew</span><b>${full.crew ? '✓ Member' : '—'}</b></div></div><div style="margin-top:16px"><span class="eyebrow plain">Vibes</span><div class="pill-group" style="margin-top:8px">${(full.vibes || []).map(v => `<span class="pill active">${esc(v)}</span>`).join('') || '<span class="dim">None picked</span>'}</div></div><div style="margin-top:20px;font-size:13px" class="dim">Member since ${new Date(full.joined || Date.now()).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })} · Need a change? <a class="red" href="${waLink('Hi! I want to update my Escape Cartel profile.')}" target="_blank">WhatsApp us</a></div></div>`; }
+    App.tickCountdowns();
+    $$('[data-swap]').forEach(b => b.onclick = () => window.open(waLink(`Hi! I want to swap my seat on booking ${b.dataset.swap} to a friend. Their name & number: `), '_blank'));
+    $$('[data-review]').forEach(b => b.onclick = () => window.open(waLink(`Review for booking ${b.dataset.review}: ⭐⭐⭐⭐⭐ `), '_blank'));
+  }
+  $$('.tabs button').forEach(b => b.onclick = () => { $$('.tabs button').forEach(x => x.classList.remove('active')); b.classList.add('active'); render(b.dataset.t); });
+  render('up');
+});
+</script>
+</body>
+</html>

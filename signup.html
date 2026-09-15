@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Join the Cartel | Escape Cartel</title>
+  <script src="assets/js/head.js?v=20260915d"></script>
+  <script src="assets/js/config.js?v=20260915d"></script>
+  <script src="assets/js/data.js?v=20260915d"></script>
+  <script src="assets/js/app.js?v=20260915d" defer></script>
+</head>
+<body>
+<section class="auth-layout">
+  <div class="auth-side"><img src="https://images.unsplash.com/photo-1504280390367-361c6d9f38f4?w=1400&q=80" alt="" onerror="this.onerror=null;this.src='https://picsum.photos/seed/signup/1200/1400'"><div><h2 class="display">Strangers today.<br><span class="red">Cartel by sunrise.</span></h2><p class="muted" style="max-width:420px">One account. Every trip. Your bookings, tickets and group chats in one place.</p></div></div>
+  <div class="auth-form"><div>
+    <div class="steps" id="steps"><i class="on"></i><i></i><i></i></div>
+    <div id="box"></div>
+  </div></div>
+</section>
+<script>
+document.addEventListener('app:ready', () => {
+  const { $, $$, auth, param, toast, esc } = App;
+  const next = param('next') || (param('crew') ? 'crew.html' : 'dashboard.html');
+  if (auth.current()) { location.href = next; return; }
+  const u = { name: '', email: '', phone: '', pass: '', college: '', year: '', city: 'Jaipur', vibes: [], crew: !!param('crew') };
+  let step = 1;
+  const set = n => { step = n; $$('#steps i').forEach((el, i) => el.classList.toggle('on', i < n)); ({ 1: s1, 2: s2, 3: s3 })[n](); };
+  const bind = () => $$('#box input, #box select').forEach(i => i.oninput = () => { u[i.id] = i.value; i.closest('.field').classList.remove('invalid'); });
+  const bad = (id, cond) => { const f = $('#' + id).closest('.field'); f.classList.toggle('invalid', cond); return cond; };
+
+  function s1() {
+    $('#box').innerHTML = `<h1 class="display">Who are you?</h1><p class="muted" style="margin:0 0 26px">The cartel is waiting. Let's get you in.</p><form class="form" id="f" novalidate>
+      <div class="field"><label>Full name</label><input id="name" value="${esc(u.name)}" placeholder="As on your ID" autocomplete="name"><div class="err">Enter your name</div></div>
+      <div class="field"><label>Email</label><input id="email" type="email" value="${esc(u.email)}" placeholder="you@college.edu" autocomplete="email"><div class="err">Enter a valid email</div></div>
+      <div class="field"><label>Phone (WhatsApp)</label><input id="phone" inputmode="numeric" value="${esc(u.phone)}" placeholder="10-digit mobile" autocomplete="tel"><div class="err">Enter a valid 10-digit number</div></div>
+      <div class="field"><label>Password</label><input id="pass" type="password" value="${esc(u.pass)}" placeholder="Min 6 characters" autocomplete="new-password"><div class="err">Min 6 characters</div></div>
+      <button class="btn btn-red btn-lg btn-block" type="submit">Next →</button></form>
+      <p class="dim" style="text-align:center;font-size:14px;margin-top:18px">Already part of the cartel? <a class="red" href="login.html${param('next') ? '?next=' + encodeURIComponent(param('next')) : ''}">Log in →</a></p>`;
+    bind();
+    $('#f').onsubmit = e => { e.preventDefault(); let b = false;
+      b = bad('name', u.name.trim().length < 2) || b; b = bad('email', !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(u.email)) || b;
+      b = bad('phone', !/^[6-9]\d{9}$/.test(u.phone.replace(/\D/g, '').slice(-10))) || b; b = bad('pass', u.pass.length < 6) || b;
+      if (!b) set(2); };
+  }
+  function s2() {
+    $('#box').innerHTML = `<h1 class="display">Where are you at?</h1><p class="muted" style="margin:0 0 26px">So we plan trips around your semester.</p><form class="form" id="f" novalidate>
+      <div class="field"><label>College / hostel</label><input id="college" value="${esc(u.college)}" placeholder="e.g. MUJ, Sundarone Hostel"><div class="err">Tell us where you study or stay</div></div>
+      <div class="row-2"><div class="field"><label>Year</label><select id="year"><option value="">Select</option><option>1st year</option><option>2nd year</option><option>3rd year</option><option>4th year</option><option>Postgrad</option><option>Not a student</option></select></div>
+      <div class="field"><label>City</label><select id="city"><option>Jaipur</option><option>Delhi NCR</option><option>Udaipur</option><option>Jodhpur</option><option>Other</option></select></div></div>
+      <div style="display:flex;gap:10px"><button class="btn btn-ghost" type="button" id="back">← Back</button><button class="btn btn-red btn-lg" type="submit" style="flex:1">Next →</button></div></form>`;
+    bind(); $('#year').value = u.year; $('#city').value = u.city;
+    $('#back').onclick = () => set(1);
+    $('#f').onsubmit = e => { e.preventDefault(); if (!bad('college', u.college.trim().length < 2)) set(3); };
+  }
+  function s3() {
+    const V = ['🧗 Treks', '🌊 Chill weekends', '🏰 Culture & food', '🐅 Wildlife', '🏜️ Desert nights', '🎉 Festivals'];
+    $('#box').innerHTML = `<h1 class="display">What's your vibe?</h1><p class="muted" style="margin:0 0 26px">Pick a few. We'll ping you first when a matching trip drops.</p>
+      <div class="pill-group" id="v" style="margin-bottom:22px">${V.map(x => `<button class="pill ${u.vibes.includes(x) ? 'active' : ''}" data-v="${esc(x)}">${x}</button>`).join('')}</div>
+      <label class="notice" style="display:flex;gap:12px;align-items:flex-start;cursor:pointer"><input type="checkbox" id="crewbox" ${u.crew ? 'checked' : ''} style="margin-top:3px;accent-color:var(--red);width:18px;height:18px"><span><b>I live in a partner hostel</b> — add me to Cartel Crew for resident-only trips & pricing.</span></label>
+      <div class="notice bad" id="err" style="display:none;margin-top:14px"></div>
+      <div style="display:flex;gap:10px;margin-top:22px"><button class="btn btn-ghost" id="back">← Back</button><button class="btn btn-red btn-lg" id="done" style="flex:1">Join the Cartel 🎒</button></div>
+      <p class="dim" style="font-size:12px;margin-top:16px;text-align:center">By joining you agree to our <a class="red" href="policy.html">terms & cancellation policy</a>.</p>`;
+    $$('#v .pill').forEach(b => b.onclick = () => { b.classList.toggle('active'); const x = b.dataset.v; u.vibes = u.vibes.includes(x) ? u.vibes.filter(y => y !== x) : [...u.vibes, x]; });
+    $('#back').onclick = () => set(2);
+    $('#done').onclick = async () => { u.crew = $('#crewbox').checked; const btn = $('#done'); btn.disabled = true; btn.textContent = 'Creating account…'; try { await auth.signup(Object.assign({}, u)); toast('Welcome to the cartel, ' + u.name.split(' ')[0] + '!'); location.href = next; } catch (err) { $('#err').style.display = ''; $('#err').textContent = err.message; btn.disabled = false; btn.textContent = 'Join the Cartel 🎒'; } };
+  }
+  set(1);
+});
+</script>
+</body>
+</html>

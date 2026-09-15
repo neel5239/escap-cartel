@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Upcoming Trips — Sept to Dec 2026 | Escape Cartel</title>
+  <meta name="description" content="Treks, day trips, weekends and multi-day escapes — all planned around your semester.">
+  <script src="assets/js/head.js?v=20260915d"></script>
+  <script src="assets/js/config.js?v=20260915d"></script>
+  <script src="assets/js/data.js?v=20260915d"></script>
+  <script src="assets/js/app.js?v=20260915d" defer></script>
+</head>
+<body>
+<section class="page-hero">
+  <div class="wrap">
+    <span class="eyebrow">Academic year 2026–27</span>
+    <h1 class="display" style="margin-top:12px">Find your next<br><span class="red">escape.</span></h1>
+    <p>Treks, day trips, weekends, and multi-day escapes — all planned around your semester.</p>
+    <div class="statrow" id="statrow"></div>
+  </div>
+</section>
+
+<section class="section-tight">
+  <div class="wrap">
+    <div class="filters" id="filters">
+      <button class="chip active" data-f="all">Everything</button>
+      <button class="chip" data-f="day">Day Trips</button>
+      <button class="chip" data-f="trek">Treks</button>
+      <button class="chip" data-f="weekend">Weekends</button>
+      <button class="chip" data-f="multi">Multi-day</button>
+      <span style="flex:1"></span>
+      <button class="chip red" data-f="open">Open now</button>
+    </div>
+
+    <div id="group-cartel">
+      <div class="sec-head" style="margin-bottom:22px"><div><h2 class="display" style="font-size:40px">Escape Cartel <span class="dim" style="font-size:20px;font-family:var(--font-body)" id="count-cartel"></span></h2></div></div>
+      <div class="grid grid-3" id="grid-cartel"></div>
+    </div>
+
+    <div id="group-crew" style="margin-top:64px">
+      <div class="sec-head" style="margin-bottom:22px"><div><h2 class="display" style="font-size:40px">Cartel Crew <span class="dim" style="font-size:20px;font-family:var(--font-body)" id="count-crew"></span></h2><p style="margin-top:4px">Exclusive to partner hostel & campus residents · Managed by Escape Cartel</p></div><a class="btn btn-ghost btn-sm" href="crew.html">About Cartel Crew →</a></div>
+      <div class="grid grid-3" id="grid-crew"></div>
+    </div>
+
+    <div class="notice" id="empty" style="display:none;text-align:center;padding:40px">No trips match that filter yet. Check back soon or <a href="plan.html" class="red">plan a custom escape →</a></div>
+
+    <div class="tile" style="margin-top:64px;display:flex;justify-content:space-between;align-items:center;gap:20px;flex-wrap:wrap">
+      <div><h3>Not sure where to start?</h3><p>First timers always start with a sunrise trek — zero commitment, maximum memories. Or let the planner pick for you.</p></div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap"><a class="btn btn-red" href="trip.html?id=twin-tower-trek">Start with a trek →</a><a class="btn btn-ghost" href="plan.html">Use the planner</a></div>
+    </div>
+  </div>
+</section>
+
+<script>
+document.addEventListener('app:ready', () => {
+  const { $, $$, upcoming, tripCard, slotsLeft } = App;
+  const all = upcoming();
+  const isDay = t => t.category === 'day' || (t.category === 'trek' && t.duration === 'Day Trip');
+  $('#statrow').innerHTML = [[all.length, 'Total trips'], [all.filter(t => t.category === 'trek').length, 'Treks'], [all.filter(t => t.price && slotsLeft(t) > 0).length, 'Open now'], [2, 'National awards']].map(s => `<div><b>${s[0]}</b><span>${s[1]}</span></div>`).join('');
+  function render(f) {
+    const match = t => f === 'all' || (f === 'open' ? (t.price && slotsLeft(t) > 0) : f === 'day' ? isDay(t) : t.category === f);
+    let total = 0;
+    ['cartel', 'crew'].forEach(g => {
+      const list = all.filter(t => t.group === g && match(t));
+      total += list.length;
+      $('#grid-' + g).innerHTML = list.map(t => tripCard(t, { showDuration: true, compact: true })).join('');
+      $('#count-' + g).textContent = list.length + (list.length === 1 ? ' trip' : ' trips');
+      $('#group-' + g).style.display = list.length ? '' : 'none';
+    });
+    $('#empty').style.display = total ? 'none' : '';
+  }
+  const start = App.param('f') || 'all';
+  $$('#filters .chip').forEach(c => { c.classList.toggle('active', c.dataset.f === start); c.onclick = () => { $$('#filters .chip').forEach(x => x.classList.remove('active')); c.classList.add('active'); render(c.dataset.f); }; });
+  render(start);
+});
+</script>
+</body>
+</html>

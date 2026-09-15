@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Register | Escape Cartel</title>
+  <script src="assets/js/head.js?v=20260915d"></script>
+  <script src="assets/js/config.js?v=20260915d"></script>
+  <script src="assets/js/data.js?v=20260915d"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <script src="assets/js/app.js?v=20260915d" defer></script>
+</head>
+<body>
+<section class="page-hero" style="padding:48px 0 32px">
+  <div class="wrap">
+    <a class="back" id="back" href="trips.html">← Back to trip</a>
+    <span class="eyebrow">Registration</span>
+    <h1 class="display" style="font-size:clamp(40px,7vw,80px);margin-top:10px" id="title">Lock your seat.</h1>
+    <div class="steps" style="max-width:520px;margin-top:22px" id="steps"><i class="on"></i><i></i><i></i><i></i></div>
+    <div class="dim" style="font-size:13px;letter-spacing:.14em;text-transform:uppercase;font-weight:700" id="stepname">Step 1 of 4 · Who's coming</div>
+  </div>
+</section>
+
+<section class="wrap checkout">
+  <div id="main"></div>
+  <aside class="summary" id="summary"></aside>
+</section>
+
+<script>
+document.addEventListener('app:ready', () => {
+  const { $, $$, param, trip, esc, inr, imgTag, slotsLeft, auth, saveBooking, waLink, upiLink, toast, C } = App;
+  const t = trip(param('id'));
+  if (!t || !t.price) { $('#main').innerHTML = `<div class="notice bad">This trip isn't open for registration yet. <a href="trips.html" class="red">See open trips →</a></div>`; $('#summary').style.display = 'none'; return; }
+  $('#back').href = `trip.html?id=${t.id}`;
+  document.title = `Register — ${t.name} | Escape Cartel`;
+  const user = auth.current() || {};
+  const maxSeats = Math.min(6, slotsLeft(t));
+  if (maxSeats < 1) { $('#main').innerHTML = `<div class="notice bad">Sold out. <a class="red" href="${waLink(`Hi! ${t.name} is sold out — please add me to the waitlist.`)}">Join the waitlist on WhatsApp →</a></div>`; $('#summary').style.display = 'none'; return; }
+
+  const state = { step: 1, seats: 1, travellers: [{ name: user.name || '', phone: user.phone || '', email: user.email || '', college: user.college || '' }], pickup: 'Main gate, campus', notes: '', utr: '', shot: '', id: null };
+  const total = () => t.price * state.seats;
+  const stepNames = ['Who\'s coming', 'Review', 'Pay via UPI', 'Done'];
+
+  function summary() {
+    $('#summary').innerHTML = `<div class="thumb">${imgTag(t.image, t.seed, t.name)}</div><h3>${esc(t.name)}</h3><div style="font-size:13px;color:#666;margin-bottom:12px">${esc(t.location)} · ${esc(t.dateText)}</div>
+      <div class="line"><span>${inr(t.price)} × ${state.seats} seat${state.seats > 1 ? 's' : ''}</span><span>${inr(total())}</span></div>
+      <div class="line"><span>Convenience fee</span><span style="color:var(--green);font-weight:700">₹0</span></div>
+      <div class="line"><span>Taxes</span><span>Included</span></div>
+      <div class="line total"><span>Total</span><span>${inr(total())}</span></div>
+      <div style="font-size:12px;color:#777;margin-top:10px">🔒 Zero hidden charges. What you see is what you pay.</div>`;
+  }
+
+  function setStep(n) {
+    state.step = n; window.scrollTo({ top: 0, behavior: 'smooth' });
+    $$('#steps i').forEach((el, i) => el.classList.toggle('on', i < n));
+    $('#stepname').textContent = `Step ${n} of 4 · ${stepNames[n - 1]}`;
+    summary(); ({ 1: step1, 2: step2, 3: step3, 4: step4 })[n]();
+  }
+
+  /* ---- STEP 1: travellers ---- */
+  function step1() {
+    $('#main').innerHTML = `<div class="panel"><h2>Who's coming?</h2>
+      <div class="field" style="margin-bottom:20px"><label>Number of seats</label><div class="qty"><button id="qminus">−</button><input id="q" value="${state.seats}" readonly><button id="qplus">+</button></div><div class="hint">Max ${maxSeats} per booking · ${slotsLeft(t)} left on this trip</div></div>
+      <div class="travellers" id="trav"></div>
+      <div class="row-2" style="margin-top:20px">
+        <div class="field"><label>Pickup point</label><select id="pickup"><option>Main gate, campus</option><option>Hostel block</option><option>City centre (Jaipur)</option><option>Railway station</option></select></div>
+        <div class="field"><label>Anything we should know?</label><input id="notes" placeholder="Allergies, vegetarian, a friend to room with…" value="${esc(state.notes)}"></div>
+      </div>
+      <div id="err" class="notice bad" style="display:none;margin-top:16px"></div>
+      <div style="display:flex;justify-content:flex-end;margin-top:22px"><button class="btn btn-red btn-lg" id="next">Review booking →</button></div></div>
+      ${auth.current() ? '' : `<div class="notice" style="margin-top:14px">Have an account? <a class="red" href="login.html?next=${encodeURIComponent(location.pathname + location.search)}">Log in</a> to autofill and track this booking in your dashboard.</div>`}`;
+    const renderTrav = () => {
+      while (state.travellers.length < state.seats) state.travellers.push({ name: '', phone: '', email: '', college: '' });
+      state.travellers.length = state.seats;
+      $('#trav').innerHTML = state.travellers.map((p, i) => `<div class="traveller"><div class="t-head">Traveller ${i + 1}${i === 0 ? ' · Primary contact' : ''}</div>
+        <div class="row-2"><div class="field"><label>Full name</label><input data-i="${i}" data-k="name" value="${esc(p.name)}" placeholder="As on ID"><div class="err">Required</div></div>
+        <div class="field"><label>Phone (WhatsApp)</label><input data-i="${i}" data-k="phone" value="${esc(p.phone)}" placeholder="10-digit mobile" inputmode="numeric"><div class="err">Enter a valid 10-digit number</div></div></div>
+        ${i === 0 ? `<div class="row-2" style="margin-top:12px"><div class="field"><label>Email</label><input data-i="0" data-k="email" value="${esc(p.email)}" placeholder="you@college.edu" type="email"><div class="err">Enter a valid email</div></div>
+        <div class="field"><label>College / hostel</label><input data-i="0" data-k="college" value="${esc(p.college)}" placeholder="Optional"></div></div>` : ''}</div>`).join('');
+      $$('#trav input').forEach(inp => inp.oninput = () => { state.travellers[+inp.dataset.i][inp.dataset.k] = inp.value; inp.closest('.field').classList.remove('invalid'); });
+    };
+    renderTrav();
+    $('#qminus').onclick = () => { if (state.seats > 1) { state.seats--; $('#q').value = state.seats; renderTrav(); summary(); } };
+    $('#qplus').onclick = () => { if (state.seats < maxSeats) { state.seats++; $('#q').value = state.seats; renderTrav(); summary(); } else toast(`Max ${maxSeats} seats per booking`); };
+    $('#pickup').value = state.pickup; $('#pickup').onchange = e => state.pickup = e.target.value;
+    $('#notes').oninput = e => state.notes = e.target.value;
+    $('#next').onclick = () => {
+      let ok = true;
+      $$('#trav input').forEach(inp => {
+        const v = inp.value.trim(), k = inp.dataset.k; let bad = false;
+        if (k === 'name' && v.length < 2) bad = true;
+        if (k === 'phone' && !/^[6-9]\d{9}$/.test(v.replace(/\D/g, '').slice(-10))) bad = true;
+        if (k === 'email' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)) bad = true;
+        inp.closest('.field').classList.toggle('invalid', bad); if (bad) ok = false;
+      });
+      if (!ok) { $('#err').style.display = ''; $('#err').textContent = 'Fix the highlighted fields to continue.'; return; }
+      setStep(2);
+    };
+  }
+
+  /* ---- STEP 2: review ---- */
+  function step2() {
+    $('#main').innerHTML = `<div class="panel"><h2>Review your booking</h2>
+      <div class="table-wrap"><table><thead><tr><th>#</th><th>Name</th><th>Phone</th></tr></thead><tbody>${state.travellers.map((p, i) => `<tr><td>${i + 1}</td><td>${esc(p.name)}</td><td>${esc(p.phone)}</td></tr>`).join('')}</tbody></table></div>
+      <div class="grid grid-2" style="margin-top:18px">
+        <div class="fact"><span>Pickup</span><b>${esc(state.pickup)}</b></div>
+        <div class="fact"><span>Contact email</span><b>${esc(state.travellers[0].email)}</b></div>
+        <div class="fact"><span>Departure</span><b>${esc(t.departure)}</b></div>
+        <div class="fact"><span>Returns</span><b>${esc(t.returns)}</b></div>
+      </div>
+      ${state.notes ? `<div class="notice" style="margin-top:14px"><b>Notes:</b> ${esc(state.notes)}</div>` : ''}
+      <div class="policy" style="margin-top:22px"><label style="display:flex;gap:12px;align-items:flex-start;cursor:pointer"><input type="checkbox" id="agree" style="margin-top:4px;accent-color:var(--red);width:18px;height:18px"><span>I've read the <a class="red" href="policy.html#refund" target="_blank">cancellation policy</a>: seats are non-refundable but can be swapped to a friend for free. Full refund only if Escape Cartel cancels.</span></label></div>
+      <div style="display:flex;justify-content:space-between;margin-top:22px;gap:10px;flex-wrap:wrap"><button class="btn btn-ghost" id="prev">← Edit details</button><button class="btn btn-red btn-lg" id="next" disabled>Proceed to pay ${inr(total())} →</button></div></div>`;
+    $('#prev').onclick = () => setStep(1);
+    $('#agree').onchange = e => $('#next').disabled = !e.target.checked;
+    $('#next').onclick = () => setStep(3);
+  }
+
+  /* ---- STEP 3: pay ---- */
+  function step3() {
+    const c = C();
+    state.id = state.id || ('EC-' + Date.now().toString(36).toUpperCase().slice(-6) + Math.floor(Math.random() * 90 + 10));
+    const note = `${state.id} ${t.name}`.slice(0, 40);
+    const link = upiLink(total(), note);
+    $('#main').innerHTML = `<div class="panel"><h2>Pay ${inr(total())} via UPI</h2>
+      <div class="pay-grid">
+        <div class="qr-box"><div id="qr"></div><div class="amt">${inr(total())}</div><div class="upi" id="upi-id">${esc(c.UPI_ID)}</div><button class="btn btn-sm" style="background:#000;color:#fff" id="copy-upi">Copy UPI ID</button></div>
+        <div>
+          <ol class="pay-steps">
+            <li>Scan the QR with any UPI app (GPay, PhonePe, Paytm, BHIM) or tap "Pay in UPI app" on mobile.</li>
+            <li>Pay exactly <b style="color:#fff;margin:0 4px">${inr(total())}</b>. Put <b style="color:#fff;margin:0 4px">${esc(state.id)}</b> in the payment note.</li>
+            <li>Paste the UTR / transaction ID below and upload the payment screenshot.</li>
+            <li>Confirm on WhatsApp. We verify within a few hours and your seat is locked.</li>
+          </ol>
+          <a class="btn btn-red btn-block" href="${link}" id="upi-btn">Pay in UPI app →</a>
+          <div class="hint dim" style="font-size:12px;margin:8px 0 18px;text-align:center">Works on mobile with a UPI app installed. On desktop, scan the QR.</div>
+          <div class="field"><label>UTR / Transaction ID</label><input id="utr" placeholder="12-digit UTR from your UPI app" value="${esc(state.utr)}"><div class="err">Enter the UTR / transaction ID (min 6 characters)</div></div>
+          <div class="field" style="margin-top:14px"><label>Payment screenshot</label>
+            <div class="upload" id="drop"><input type="file" id="file" accept="image/*" hidden><div id="drop-txt">📎 Click to upload or drag & drop the screenshot</div>${state.shot ? `<img src="${state.shot}" alt="">` : ''}</div>
+            <div class="hint">Optional but speeds up verification. Stays on this device.</div></div>
+        </div>
+      </div>
+      <div id="err" class="notice bad" style="display:none;margin-top:16px"></div>
+      <div style="display:flex;justify-content:space-between;margin-top:22px;gap:10px;flex-wrap:wrap"><button class="btn btn-ghost" id="prev">← Back</button><button class="btn btn-red btn-lg" id="next">I've paid — confirm booking →</button></div></div>`;
+    // QR: custom image (admin upload / config) else generated from UPI link
+    const custom = c.QR_IMAGE_DATA || c.QR_IMAGE;
+    if (custom) { $('#qr').innerHTML = `<img src="${custom}" alt="UPI QR">`; }
+    else if (window.QRCode) { new QRCode($('#qr'), { text: link, width: 228, height: 228, correctLevel: QRCode.CorrectLevel.M }); }
+    else $('#qr').innerHTML = `<div style="width:228px;height:228px;display:grid;place-items:center;color:#000;font-size:13px;text-align:center">QR unavailable offline.<br>Pay to UPI ID below.</div>`;
+    $('#copy-upi').onclick = () => { navigator.clipboard?.writeText(c.UPI_ID); toast('UPI ID copied'); };
+    $('#utr').oninput = e => { state.utr = e.target.value; e.target.closest('.field').classList.remove('invalid'); };
+    const drop = $('#drop'), file = $('#file');
+    drop.onclick = () => file.click();
+    const load = f => { if (!f || !f.type.startsWith('image/')) return; const r = new FileReader(); r.onload = () => { state.shot = r.result; $('#drop-txt').textContent = '✅ Screenshot attached — click to change'; let im = $('img', drop); if (!im) { im = document.createElement('img'); drop.appendChild(im); } im.src = state.shot; }; r.readAsDataURL(f); };
+    file.onchange = () => load(file.files[0]);
+    ['dragenter', 'dragover'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.add('drag'); }));
+    ['dragleave', 'drop'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.remove('drag'); }));
+    drop.addEventListener('drop', e => load(e.dataTransfer.files[0]));
+    $('#prev').onclick = () => setStep(2);
+    $('#next').onclick = () => {
+      if (state.utr.trim().length < 6) { $('#utr').closest('.field').classList.add('invalid'); $('#err').style.display = ''; $('#err').textContent = 'Please enter the UTR / transaction ID from your UPI app.'; return; }
+      const b = { id: state.id, tripId: t.id, tripName: t.name, dateText: t.dateText, seats: state.seats, amount: total(), travellers: state.travellers, pickup: state.pickup, notes: state.notes, utr: state.utr.trim(), shot: state.shot || '', userId: user.id || null, email: state.travellers[0].email, phone: state.travellers[0].phone, name: state.travellers[0].name };
+      const btn = $('#next'); btn.disabled = true; btn.textContent = 'Saving your booking…';
+      saveBooking(b).then(saved => { state.id = saved.id; setStep(4); }).catch(err => { btn.disabled = false; btn.textContent = "I've paid — confirm booking →"; $('#err').style.display = ''; $('#err').textContent = err.message || 'Could not save booking. Try again.'; });
+    };
+  }
+
+  /* ---- STEP 4: done ---- */
+  function step4() {
+    const p = state.travellers[0];
+    const msg = `Hi Escape Cartel! 🎒\nBooking ID: *${state.id}*\nTrip: *${t.name}* (${t.dateText})\nName: ${p.name}\nSeats: ${state.seats}\nAmount paid: ${inr(total())}\nUTR: ${state.utr}\nPickup: ${state.pickup}\nPlease verify my payment and confirm my seat. I'll send the screenshot here.`;
+    $('#main').innerHTML = `<div class="notice ok" style="margin-bottom:22px;font-size:15px">🎉 <b>Booking received!</b> Your seat is reserved for 24 hours while we verify the payment. Send the confirmation on WhatsApp to speed it up.</div>
+      <div class="ticket" id="ticket">
+        <div class="t-top"><span class="script">Escape Cartel</span><span class="status pending">● Pending verification</span></div>
+        <div class="t-body">
+          <div style="grid-column:1/-1"><span>Trip</span><b style="font-family:var(--font-display);font-size:30px">${esc(t.name)}</b></div>
+          <div><span>Booking ID</span><b>${esc(state.id)}</b></div><div><span>Traveller</span><b>${esc(p.name)}${state.seats > 1 ? ` +${state.seats - 1}` : ''}</b></div>
+          <div><span>Date</span><b>${esc(t.dateText)}</b></div><div><span>Pickup</span><b>${esc(state.pickup)}</b></div>
+          <div><span>Amount</span><b>${inr(total())}</b></div><div><span>UTR</span><b>${esc(state.utr)}</b></div>
+        </div>
+        <div class="t-cut"></div>
+        <div class="t-foot"><span>Show this at boarding · Non-transferable without swap request</span><span>${esc(t.location)}</span></div>
+      </div>
+      <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:24px">
+        <a class="btn btn-wa btn-lg" href="${waLink(msg)}" target="_blank" rel="noopener">Confirm on WhatsApp →</a>
+        <button class="btn btn-ghost" id="print">Download / print ticket</button>
+        <a class="btn btn-ghost" href="dashboard.html">My bookings</a>
+      </div>`;
+    $('#print').onclick = () => window.print();
+    $('#summary').innerHTML = `<h3>What happens next</h3><div class="line"><span>1. We verify the UTR</span><span>~2 hrs</span></div><div class="line"><span>2. You get a confirmation on WhatsApp</span><span>✓</span></div><div class="line"><span>3. You're added to the trip group</span><span>🎒</span></div><div class="line"><span>4. Packing list drops 3 days before</span><span>📋</span></div><div style="font-size:12px;color:#777;margin-top:12px">Questions? Reply on WhatsApp anytime.</div>`;
+  }
+
+  setStep(1);
+});
+</script>
+<style media="print">.nav,.footer,.wa-float,.nextbar,.page-hero,.summary,.notice,.btn,.mobile-menu{display:none!important}body{background:#fff}.ticket{box-shadow:none;border:1px solid #000}.t-cut::before,.t-cut::after{background:#fff}</style>
+</body>
+</html>

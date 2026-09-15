@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Trip | Escape Cartel</title>
+  <script src="assets/js/head.js?v=20260915d"></script>
+  <link rel="stylesheet" href="assets/css/trip.css?v=20260915d">
+  <script src="assets/js/config.js?v=20260915d"></script>
+  <script src="assets/js/data.js?v=20260915d"></script>
+  <script src="assets/js/app.js?v=20260915d" defer></script>
+</head>
+<body>
+<div id="page"></div>
+
+<script>
+document.addEventListener('app:ready', () => {
+  const { $, $$, param, trip, esc, inr, imgTag, slotsLeft, pctFilled, daysLeft, waLink, toast, tripCard, upcoming, C } = App;
+  const t = trip(param('id'));
+  const page = $('#page');
+  if (!t) { page.innerHTML = `<section class="section"><div class="wrap" style="text-align:center"><h1 class="display" style="font-size:80px">Trip not found</h1><p class="muted">That link is broken or the trip is gone.</p><a class="btn btn-red" href="trips.html">See all trips</a></div></section>`; return; }
+  document.title = `${t.name} | Escape Cartel`;
+  const c = C();
+  const left = slotsLeft(t), pct = pctFilled(t), sold = left === 0, dl = daysLeft(t);
+  const giant = (t.giant || t.name.split(/\s[—·–-]\s/)[0]).trim();
+  const places = t.location.split(',').map(s => s.trim()).filter(Boolean);
+  const nights = (t.duration.match(/(\d+)\s*Night/i) || [])[1];
+  const days = (t.duration.match(/(\d+)\s*Day/i) || [])[1] || (t.duration === 'Day Trip' ? 1 : null);
+
+  /* photo pool: trip image first, then gallery (rotated so each trip looks different) */
+  const g = window.EC_GALLERY.filter(x => x.img !== t.image);
+  const off = window.EC_TRIPS.indexOf(t) * 3;
+  const pool = [{ img: t.image, seed: t.seed }].concat(g.slice(off % g.length), g.slice(0, off % g.length));
+  const pic = i => pool[i % pool.length];
+
+  /* fact posters (5) */
+  const facts = [
+    { b: days ? days : '1', s: days ? (days == 1 ? 'day escape' : 'days on the road') : 'day escape' },
+    { b: places.length > 1 ? places.length : t.difficulty, s: places.length > 1 ? 'places, one bus' : 'grade trek' },
+    { b: t.price ? inr(t.price) : 'TBA', s: t.price ? 'all-in, no hidden fees' : 'price revealing soon' },
+    { b: nights ? nights : '∞', s: nights ? 'nights, twin sharing' : 'photos & reels' },
+    { b: left, s: sold ? 'seats — sold out' : 'seats left · ' + pct + '% full' }
+  ];
+
+  /* icon guess for included items */
+  const ico = s => /bus|jeep|transfer|transport/i.test(s) ? '🚌' : /night|stay|accommodation|hotel|camp|tent/i.test(s) ? '🏕️' : /breakfast|dinner|lunch|meal|food/i.test(s) ? '🍽️' : /host|guide|lead|crew/i.test(s) ? '🧭' : /photo|reel|drone/i.test(s) ? '📸' : /raft|safari|ropeway|ticket|permit|boat|trek/i.test(s) ? '🎟️' : /first-aid|hydration|gear|spike|gaiter/i.test(s) ? '🛡️' : '✅';
+  const incCard = (s, no) => { const [h, ...rest] = s.split(/\s[\(—–-]\s?/); return `<div class="inc ${no ? 'no' : ''} rv"><h3><i>${no ? '✕' : ico(s)}</i>${esc(h.replace(/\)$/, ''))}</h3><p>${esc(rest.join(' ').replace(/\)$/, '') || (no ? 'Paid on the go, by you.' : 'Covered in your trip price.'))}</p></div>`; };
+
+  const waMsg = `Hi Escape Cartel! I'm interested in *${t.name}* (${t.dateText}). Can you share details?`;
+  const others = upcoming().filter(x => x.id !== t.id).slice(0, 3);
+  const IG = '<svg viewBox="0 0 24 24"><path d="M12 2.2c3.2 0 3.6 0 4.8.1 3.3.1 4.8 1.7 4.9 4.9.1 1.3.1 1.6.1 4.8s0 3.6-.1 4.8c-.1 3.2-1.7 4.8-4.9 4.9-1.3.1-1.6.1-4.8.1s-3.6 0-4.8-.1c-3.3-.1-4.8-1.7-4.9-4.9C2.2 15.6 2.2 15.2 2.2 12s0-3.6.1-4.8C2.4 3.9 4 2.4 7.2 2.3 8.4 2.2 8.8 2.2 12 2.2zM12 0C8.7 0 8.3 0 7.1.1 2.7.3.3 2.7.1 7.1 0 8.3 0 8.7 0 12s0 3.7.1 4.9c.2 4.4 2.6 6.8 7 7 1.2.1 1.6.1 4.9.1s3.7 0 4.9-.1c4.4-.2 6.8-2.6 7-7 .1-1.2.1-1.6.1-4.9s0-3.7-.1-4.9c-.2-4.4-2.6-6.8-7-7C15.7 0 15.3 0 12 0zm0 5.8a6.2 6.2 0 1 0 0 12.4 6.2 6.2 0 0 0 0-12.4zM12 16a4 4 0 1 1 0-8 4 4 0 0 1 0 8zm6.4-11.8a1.4 1.4 0 1 0 0 2.9 1.4 1.4 0 0 0 0-2.9z"/></svg>';
+  const WA = '<svg viewBox="0 0 24 24"><path d="M17.5 14.4c-.3-.1-1.8-.9-2-1-.3-.1-.5-.1-.7.1-.2.3-.8 1-.9 1.2-.2.2-.3.2-.6.1-.3-.1-1.3-.5-2.4-1.5-.9-.8-1.5-1.8-1.7-2.1-.2-.3 0-.5.1-.6l.5-.6c.2-.2.2-.3.3-.5.1-.2 0-.4 0-.5l-.9-2.2c-.2-.6-.5-.5-.7-.5h-.6c-.2 0-.5.1-.8.4-.3.3-1 1-1 2.5s1.1 2.9 1.2 3.1c.1.2 2.1 3.2 5.1 4.5 2.5 1 3 .8 3.6.8.6-.1 1.8-.7 2-1.4.2-.7.2-1.3.2-1.4-.1-.2-.3-.3-.6-.4M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2m0 18.2c-1.5 0-3-.4-4.3-1.2l-.3-.2-3 .8.8-2.9-.2-.3A8.2 8.2 0 1 1 12 20.2"/></svg>';
+  const SH = '<svg viewBox="0 0 24 24"><path d="M18 16.1c-.8 0-1.5.3-2 .8l-7.1-4.1c.1-.3.1-.5.1-.8s0-.5-.1-.8L16 7.1c.5.5 1.2.8 2 .8a3 3 0 1 0-3-3c0 .3 0 .5.1.8L8.1 9.8A3 3 0 1 0 8 14.2l7.1 4.2c-.1.2-.1.5-.1.7a2.9 2.9 0 1 0 3-3z"/></svg>';
+
+  const bookBtn = sold
+    ? `<a class="btn btn-white btn-lg" href="${waLink(`Hi! ${t.name} is sold out — please add me to the waitlist.`)}" target="_blank" rel="noopener">Sold out · Waitlist</a>`
+    : t.price ? `<a class="btn btn-white btn-lg" href="book.html?id=${t.id}">Book</a>`
+    : `<a class="btn btn-white btn-lg" href="${waLink(`Hi! Add me to the waitlist for ${t.name}.`)}" target="_blank" rel="noopener">Join waitlist</a>`;
+
+  page.innerHTML = `
+  <!-- HERO -->
+  <section class="tp-hero">
+    <div class="hero-bg">${imgTag(t.image, t.seed, t.name)}</div>
+    <div class="tp-giant ${giant.length > 11 ? 'long' : ''}">${esc(giant)}</div>
+    <div class="tp-social">
+      <a href="${esc(c.INSTAGRAM)}" target="_blank" rel="noopener" aria-label="Instagram">${IG}</a>
+      <a href="${waLink(waMsg)}" target="_blank" rel="noopener" aria-label="WhatsApp">${WA}</a>
+      <a href="#" id="sh-wa" aria-label="Share">${SH}</a>
+    </div>
+    <div class="wrap">
+      <div>
+        <a class="back" href="trips.html">← Back to all trips</a>
+        <div class="tp-tags"><span class="tag">${esc(t.tag)}</span><span class="tag tag-diff ${t.difficulty.toLowerCase()}">${esc(t.difficulty)}</span>${t.group === 'crew' ? '<span class="tag" style="background:#fff;color:#000">CARTEL CREW</span>' : ''}<span class="tag" style="background:rgba(0,0,0,.5);border:1px solid var(--line-2)">📅 ${esc(t.dateText)}</span></div>
+        <p class="tp-sub">${esc(t.short)}</p>
+        <div class="tp-posters">${facts.map((f, i) => `<div class="tp-poster rv">${imgTag(pic(i + 1).img, pic(i + 1).seed, '')}<span><b>${esc(String(f.b))}</b>${esc(f.s)}</span></div>`).join('')}</div>
+      </div>
+      <div class="tp-book rv">
+        ${bookBtn}
+        <div class="meta"><span>Investment<br>${t.price ? `<b>${inr(t.price)}</b>` : '<b style="font-size:16px;color:var(--amber)">Revealing soon</b>'}</span><span style="text-align:right">${dl > 0 ? `Departs in<br><b class="cd" data-cd="${t.start}"></b>` : `Seats<br><b>${left} left</b>`}</span></div>
+        <div class="progress"><i style="width:${pct}%"></i></div>
+        <div class="progress-meta"><span><b>${left}</b> spots left</span><span>${pct}% booked</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ABOUT THE TOUR -->
+  <section class="section" style="padding-top:64px">
+    <div class="wrap">
+      <div class="tp-title rv"><h2>About the trip</h2></div>
+      <div class="tl-wrap">
+        <div class="tl-side">
+          <div class="tl-intro rv">${esc(t.about)}<br><br>You'll cover: <em>${esc(places.join(', '))}</em>.</div>
+          <div class="tl-intro rv">No need to worry about routes, schedules, or finding places — everything is already organised. We'll show you where to go, what to see, and where to eat, so you can simply <em>enjoy the escape</em>.</div>
+          <div class="rv"><div class="eyebrow">Key facts</div><div class="grid grid-2" style="margin-top:14px;gap:10px">
+            <div class="fact"><span>Date</span><b>${esc(t.dateText.split('·')[0].trim())}</b></div><div class="fact"><span>Duration</span><b>${esc(t.duration)}</b></div>
+            <div class="fact"><span>Departure</span><b>${esc(t.departure)}</b></div><div class="fact"><span>Returns</span><b>${esc(t.returns)}</b></div></div></div>
+        </div>
+        <div class="tl">
+          ${t.itinerary.map((d, i) => `<div class="tl-item rv"><span class="tl-dot"></span>
+            <div class="tl-label"><div class="days">${esc(d.day)}</div><div class="city">${esc(d.title)}</div><ul>${d.items.map(x => `<li>${esc(x)}</li>`).join('')}</ul></div>
+            <div class="tl-photos">${[0, 1, 2].slice(0, i === 0 ? 3 : 2).map(k => imgTag(pic(i * 2 + k + 1).img, pic(i * 2 + k + 1).seed, d.title)).join('')}</div>
+          </div>`).join('')}
+        </div>
+      </div>
+      <div class="block rv" style="margin-top:56px"><h2>Highlights</h2><ul class="list" style="grid-template-columns:1fr 1fr">${t.highlights.map(x => `<li>${esc(x)}</li>`).join('')}</ul></div>
+    </div>
+  </section>
+
+  <!-- WHAT'S INCLUDED -->
+  <section class="section" style="padding-top:20px">
+    <div class="wrap">
+      <div class="tp-title left rv"><h2>What's included</h2></div>
+      <div class="inc-grid">${t.included.map(s => incCard(s, false)).join('')}</div>
+      <div class="tp-title right rv" style="margin-top:56px"><h2 style="font-size:clamp(28px,4vw,44px)">Not included</h2></div>
+      <div class="inc-grid">${t.excluded.map(s => incCard(s, true)).join('')}</div>
+      <div class="policy rv" style="margin-top:32px"><b style="color:#fff">Cancellation:</b> non-refundable, but you can hand your seat to a friend for free. 100% refund if Escape Cartel cancels or reschedules. <a href="policy.html#refund" class="red">Full policy →</a></div>
+    </div>
+  </section>
+
+  <!-- ASK -->
+  <section class="tp-ask">
+    <div class="hero-bg">${imgTag(pic(4).img, pic(4).seed, '')}</div>
+    <div class="wrap">
+      <form class="glass rv" id="ask">
+        <h3>Want to join us,<br>but still have questions?</h3>
+        <label>Leave a request</label>
+        <input id="a-name" placeholder="Your name" required>
+        <input id="a-phone" placeholder="Phone number" inputmode="numeric" required>
+        <textarea id="a-msg" rows="2" placeholder="Comment"></textarea>
+        <button class="btn btn-white btn-block" type="submit">Send</button>
+        <div class="dim" style="font-size:11px;margin-top:10px">Opens WhatsApp with your message. We reply within the hour.</div>
+      </form>
+    </div>
+  </section>
+
+  <!-- RELATED -->
+  <section class="section" style="padding-top:0">
+    <div class="wrap">
+      <div class="tp-foot-cta rv"><div><h3 class="display" style="font-size:36px">Ready to lock your seat?</h3><p class="muted" style="margin:4px 0 0">${t.price ? inr(t.price) + ' per person · ' : ''}${left} spots left · UPI, zero hidden charges.</p></div><div style="display:flex;gap:10px">${bookBtn.replace('btn-white', 'btn-red')}<button class="btn btn-ghost" id="sh-copy">Copy link</button></div></div>
+      <div class="sec-head" style="margin-top:64px"><div><span class="eyebrow">More escapes</span><h2 class="display" style="font-size:44px">You might also like</h2></div></div>
+      <div class="grid grid-3">${others.map(x => tripCard(x, { compact: true })).join('')}</div>
+    </div>
+  </section>`;
+
+  App.tickCountdowns();
+  $('#sh-copy').onclick = () => { navigator.clipboard?.writeText(location.href); toast('Link copied'); };
+  $('#sh-wa').onclick = e => { e.preventDefault(); window.open(`https://wa.me/?text=${encodeURIComponent(`${t.name} with Escape Cartel — ${t.dateText}. ${location.href}`)}`, '_blank'); };
+  $('#ask').onsubmit = e => { e.preventDefault(); const n = $('#a-name').value.trim(), p = $('#a-phone').value.trim(), m = $('#a-msg').value.trim(); if (!n || !p) return toast('Add your name & phone'); App.sendRequest({ name: n, phone: p, message: m, tripId: t.id, tripName: t.name }); window.open(waLink(`Hi Escape Cartel! I'm ${n} (${p}). Question about *${t.name}* (${t.dateText}):\n${m || 'Can you share more details?'}`), '_blank'); toast('Opening WhatsApp…'); };
+});
+</script>
+</body>
+</html>

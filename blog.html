@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Blog — Stories from the road | Escape Cartel</title>
+  <meta name="description" content="Trip recaps, packing guides, hidden spots our hosts won't shut up about, and the odd 2am story from the road.">
+  <script src="assets/js/head.js?v=20260915d"></script>
+  <script src="assets/js/config.js?v=20260915d"></script>
+  <script src="assets/js/data.js?v=20260915d"></script>
+  <script src="assets/js/app.js?v=20260915d" defer></script>
+</head>
+<body>
+<div id="page"></div>
+<script>
+document.addEventListener('app:ready', () => {
+  const { $, param, esc, imgTag, waLink } = App;
+  const id = param('post'); const posts = window.EC_POSTS; const p = posts.find(x => x.id === id);
+  if (p) {
+    document.title = `${p.title} | Escape Cartel`;
+    $('#page').innerHTML = `<article class="wrap article"><a class="back" href="blog.html">← All stories</a><div><span class="tag">${esc(p.tag)}</span></div><h1 class="display">${esc(p.title)}</h1><div class="dim" style="font-size:13px">${esc(p.date)} · ${p.mins} min read · by the Cartel</div><div class="cover">${imgTag(p.img, p.seed, p.title)}</div>${p.body.map(x => `<p>${esc(x)}</p>`).join('')}<div class="tile" style="margin-top:40px;display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap"><div><h3>Want in on the next one?</h3><p>Trips fill in days. Get on the list.</p></div><a class="btn btn-red" href="trips.html">See trips →</a></div></article>`;
+    return;
+  }
+  $('#page').innerHTML = `<section class="page-hero"><div class="wrap"><span class="eyebrow">Stories from the road</span><h1 class="display" style="margin-top:12px">The cartel's<br><span class="red">stories.</span></h1><p>Trip recaps, packing guides, hidden spots our hosts won't shut up about, and the odd 2am story from the road.</p></div></section>
+  <section class="section"><div class="wrap"><div class="grid grid-3">${posts.map(p => `<a class="card post-card rv" href="blog.html?post=${p.id}"><div class="card-img">${imgTag(p.img, p.seed, p.title)}<div class="card-tags"><span class="tag">${esc(p.tag)}</span></div></div><div class="card-body"><div class="meta"><span>${esc(p.date)}</span><span>·</span><span>${p.mins} min read</span></div><h3 style="font-size:26px">${esc(p.title)}</h3><p class="card-desc">${esc(p.excerpt)}</p><div class="card-foot"><span class="red" style="font-weight:700;font-size:14px">Read story →</span></div></div></a>`).join('')}</div>
+  <div class="tile" style="margin-top:48px;display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap"><div><h3>Got a story from a trip?</h3><p>Send it to us — best ones get published (and a free trek).</p></div><a class="btn btn-wa" href="${waLink('Hi! I have a trip story for the Escape Cartel blog.')}" target="_blank" rel="noopener">Send on WhatsApp</a></div></div></section>`;
+});
+</script>
+</body>
+</html>

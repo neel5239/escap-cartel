@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Plan an Escape — Smart Trip Planner | Escape Cartel</title>
+  <meta name="description" content="Tell us your vibe, days and budget. Get a day-by-day escape plan and the cartel trip that matches it.">
+  <script src="assets/js/head.js?v=20260915d"></script>
+  <script src="assets/js/config.js?v=20260915d"></script>
+  <script src="assets/js/data.js?v=20260915d"></script>
+  <script src="assets/js/app.js?v=20260915d" defer></script>
+</head>
+<body>
+<section class="page-hero">
+  <div class="wrap">
+    <span class="eyebrow">Escape Planner · beta</span>
+    <h1 class="display" style="margin-top:12px">Tell us your vibe.<br><span class="red">We'll plan the escape.</span></h1>
+    <p>Pick a mood, a budget and how many days you've got. Get a day-by-day plan in seconds — plus the cartel trip that matches it, or send the plan to us on WhatsApp and we'll make it happen for your group.</p>
+  </div>
+</section>
+
+<section class="wrap planner">
+  <div class="panel">
+    <h2>Your escape</h2>
+    <div class="form">
+      <div class="field"><label>Vibe</label><div class="vibe-grid" id="vibes">
+        <button class="vibe active" data-v="adventure"><b>🧗 Adventure</b><span>Treks, rafting, summits</span></button>
+        <button class="vibe" data-v="chill"><b>🌊 Chill</b><span>Lakes, cafés, sunsets</span></button>
+        <button class="vibe" data-v="culture"><b>🏰 Culture</b><span>Forts, food trails, temples</span></button>
+        <button class="vibe" data-v="wild"><b>🐅 Wild</b><span>Safaris, desert, stars</span></button>
+      </div></div>
+      <div class="field"><label>Days: <span id="days-v" style="color:#fff">3</span></label><input type="range" class="range" id="days" min="1" max="7" value="3"></div>
+      <div class="field"><label>Budget per person: <span id="bud-v" style="color:#fff">₹6,000</span></label><input type="range" class="range" id="bud" min="500" max="20000" step="500" value="6000"></div>
+      <div class="field"><label>Group size</label><div class="pill-group" id="grp"><button class="pill" data-g="Solo">Solo</button><button class="pill active" data-g="2-5">2–5</button><button class="pill" data-g="6-15">6–15</button><button class="pill" data-g="15+">15+ (whole hostel)</button></div></div>
+      <div class="field"><label>Starting from</label><select id="from"><option>Jaipur</option><option>Delhi NCR</option><option>Udaipur</option><option>Jodhpur</option><option>Somewhere else</option></select></div>
+      <button class="btn btn-red btn-lg btn-block" id="go">Generate my escape →</button>
+    </div>
+  </div>
+
+  <div class="plan-out" id="out">
+    <div class="notice" style="text-align:center;padding:60px 24px"><div style="font-size:40px">🗺️</div><h3 class="display" style="font-size:32px;margin:8px 0">Your plan shows up here</h3><p class="dim" style="margin:0">Pick a vibe and hit generate.</p></div>
+  </div>
+</section>
+
+<script>
+document.addEventListener('app:ready', () => {
+  const { $, $$, esc, inr, imgTag, upcoming, waLink, slotsLeft, toast } = App;
+  const st = { vibe: 'adventure', days: 3, bud: 6000, grp: '2-5', from: 'Jaipur' };
+  $$('#vibes .vibe').forEach(b => b.onclick = () => { $$('#vibes .vibe').forEach(x => x.classList.remove('active')); b.classList.add('active'); st.vibe = b.dataset.v; });
+  $$('#grp .pill').forEach(b => b.onclick = () => { $$('#grp .pill').forEach(x => x.classList.remove('active')); b.classList.add('active'); st.grp = b.dataset.g; });
+  $('#days').oninput = e => { st.days = +e.target.value; $('#days-v').textContent = st.days; };
+  $('#bud').oninput = e => { st.bud = +e.target.value; $('#bud-v').textContent = inr(st.bud); };
+  $('#from').onchange = e => st.from = e.target.value;
+
+  /* destination knowledge base */
+  const DEST = {
+    adventure: [
+      { name: 'Aravali Sunrise Trek', near: 'Jaipur', minDays: 1, cost: 900, img: 'https://images.unsplash.com/photo-1551632811-561732d1e306?w=1200&q=80', seed: 'pa1', days: [['Summit day', ['4:30 AM departure', 'Sunrise at the peak', 'Village breakfast', 'Back by noon']]] , match: ['twin-tower-trek', 'ban-ki-ghati-trek', 'raghunath-fort-trek'] },
+      { name: 'Rishikesh Adventure Run', near: 'Delhi NCR', minDays: 3, cost: 7500, img: 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=1200&q=80', seed: 'pa2', days: [['Ganga & ghats', ['Arrive, check-in', 'Laxman Jhula walk', 'Evening aarti at Triveni']], ['Rafting', ['16 km Shivpuri rafting', 'Cliff jump', 'Beach camp bonfire']], ['Bungee & cafés', ['Bungee (optional)', 'Beatles Ashram', 'Café hopping', 'Depart']], ['Mussoorie detour', ['Mall Road', 'Kempty Falls', 'Landour lanes']], ['Dhanaulti', ['Eco Park', 'Cedar forest walk', 'Bonfire']]], match: ['rishikesh-mussoorie'] },
+      { name: 'Kedarkantha Winter Summit', near: 'Delhi NCR', minDays: 5, cost: 12500, img: 'https://images.unsplash.com/photo-1519681393784-d120267933ba?w=1200&q=80', seed: 'pa3', days: [['Travel to Sankri', ['Overnight bus', 'Jeep to Sankri', 'Briefing']], ['Juda ka Talab', ['Pine forest climb', 'Camp by the lake']], ['Base camp', ['Climb to 11,250 ft', 'Sunset over ranges']], ['Summit', ['3 AM push', 'Sunrise at 12,500 ft', 'Descend']], ['Return', ['Sankri → Dehradun', 'Overnight home']]], match: ['kedarkantha-trek'] }
+    ],
+    chill: [
+      { name: 'Udaipur Lake Weekend', near: 'Jaipur', minDays: 2, cost: 4500, img: 'https://images.unsplash.com/photo-1524492412937-b28ace9d5a5a?w=1200&q=80', seed: 'pc1', days: [['Old city', ['City Palace', 'Jagdish temple', 'Ambrai Ghat sunset']], ['Lakes', ['Boat on Pichola', 'Sajjangarh', 'Fateh Sagar sunset']], ['Slow morning', ['Rooftop café', 'Shopping at Hathi Pol', 'Head home']]], match: ['udaipur-escape'] },
+      { name: 'Landour Slow Escape', near: 'Delhi NCR', minDays: 3, cost: 8000, img: 'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?w=1200&q=80', seed: 'pc2', days: [['Mussoorie', ['Mall Road', 'Gun Hill ropeway']], ['Landour', ['Char Dukan breakfast', 'Lal Tibba', 'Bookshop crawl']], ['Dhanaulti', ['Cedar forest', 'Eco Park', 'Bonfire']], ['Back down', ['Kempty Falls', 'Rishikesh cafés']]], match: ['rishikesh-mussoorie'] },
+      { name: 'Jaipur Hidden Day', near: 'Jaipur', minDays: 1, cost: 800, img: 'https://images.unsplash.com/photo-1477587458883-47145ed94245?w=1200&q=80', seed: 'pc3', days: [['City day', ['Nahargarh sunrise', 'Old city breakfast', 'Patrika Gate', 'Rooftop sunset']]], match: ['twin-tower-trek'] }
+    ],
+    culture: [
+      { name: 'Jaisalmer Golden Trail', near: 'Jaipur', minDays: 3, cost: 9000, img: 'https://images.unsplash.com/photo-1504280390367-361c6d9f38f4?w=1200&q=80', seed: 'pk1', days: [['Golden fort', ['Fort & havelis', 'Sunset point']], ['Border', ['Tanot Mata', 'Longewala', 'Dunes camp']], ['Dunes', ['Camel sunrise', 'Folk night']], ['Return', ['Gadisar Lake', 'Bus back']]], match: ['jaisalmer-desert-finale'] },
+      { name: 'Pushkar Fair Weekend', near: 'Jaipur', minDays: 1, cost: 2500, img: 'https://images.unsplash.com/photo-1476514525535-07fb3b4ae5f1?w=1200&q=80', seed: 'pk2', days: [['Mela', ['Camel fair ground', 'Evening aarti', 'Camp']], ['Sunrise', ['Balloons at dawn', 'Savitri ropeway', 'Return']]], match: ['pushkar-camel-fair'] },
+      { name: 'Udaipur Heritage Walk', near: 'Jaipur', minDays: 2, cost: 5000, img: 'https://images.unsplash.com/photo-1524492412937-b28ace9d5a5a?w=1200&q=80', seed: 'pk3', days: [['Palaces', ['City Palace', 'Bagore ki Haveli dance show']], ['Temples & lakes', ['Jagdish temple', 'Boat ride', 'Sunset']]], match: ['udaipur-escape'] }
+    ],
+    wild: [
+      { name: 'Ranthambore Tiger Weekend', near: 'Jaipur', minDays: 1, cost: 4000, img: 'https://images.unsplash.com/photo-1469474968028-56623f02e42e?w=1200&q=80', seed: 'pw1', days: [['Fort & safari', ['Ranthambore Fort', 'Evening safari', 'Campfire']], ['Dawn safari', ['Morning safari', 'Brunch', 'Return']]], match: ['ranthambore-safari'] },
+      { name: 'Thar Desert Sky Camp', near: 'Jaipur', minDays: 3, cost: 9500, img: 'https://images.unsplash.com/photo-1504280390367-361c6d9f38f4?w=1200&q=80', seed: 'pw2', days: [['Jaisalmer', ['Fort', 'Sunset']], ['Border run', ['Longewala', 'Dunes camp']], ['Dunes', ['Camel safari', 'Star-gazing']], ['Home', ['Gadisar', 'Bus']]], match: ['jaisalmer-desert-finale'] }
+    ]
+  };
+
+  function plan() {
+    const pool = DEST[st.vibe].filter(d => d.minDays <= st.days);
+    let pick = pool.filter(d => d.cost <= st.bud).sort((a, b) => b.cost - a.cost)[0] || pool.sort((a, b) => a.cost - b.cost)[0] || DEST[st.vibe][0];
+    const n = Math.min(st.days, pick.days.length);
+    const days = pick.days.slice(0, n);
+    const over = pick.cost > st.bud;
+    const perHead = st.grp === '15+' ? Math.round(pick.cost * 0.85) : st.grp === '6-15' ? Math.round(pick.cost * 0.92) : pick.cost;
+    const matchTrip = pick.match.map(id => window.EC_TRIPS.find(t => t.id === id)).filter(t => t && new Date(t.end) > new Date() && slotsLeft(t) > 0)[0];
+    const text = `Escape plan (${st.vibe}, ${st.days} days, ${st.grp} people from ${st.from}):\n${pick.name}\n` + days.map((d, i) => `Day ${i + 1} – ${d[0]}: ${d[1].join(', ')}`).join('\n') + `\nBudget ~${inr(perHead)}/person`;
+    $('#out').innerHTML = `
+      <div class="plan-hero rv">${imgTag(pick.img, pick.seed, pick.name)}<div><span class="tag">${esc(st.vibe.toUpperCase())} · ${st.days} DAY${st.days > 1 ? 'S' : ''}</span><h3>${esc(pick.name)}</h3></div></div>
+      <div class="statrow" style="margin:0 0 20px"><div><b>${inr(perHead)}</b><span>est. per person</span></div><div><b>${n}</b><span>days planned</span></div><div><b>${esc(st.grp)}</b><span>group</span></div><div><b>${esc(st.from)}</b><span>from</span></div></div>
+      ${over ? `<div class="notice bad" style="margin-bottom:16px">Heads up: this runs about ${inr(pick.cost - st.bud)} over your budget. Bigger groups bring it down — or try a shorter escape.</div>` : ''}
+      ${st.grp !== 'Solo' && st.grp !== '2-5' ? `<div class="notice ok" style="margin-bottom:16px">Group discount applied — ${st.grp === '15+' ? '15%' : '8%'} off for ${st.grp} people.</div>` : ''}
+      ${days.map((d, i) => `<div class="day-card rv"><div class="d">Day ${i + 1}</div><div><h4>${esc(d[0])}</h4><ul>${d[1].map(x => `<li>${esc(x)}</li>`).join('')}</ul></div></div>`).join('')}
+      ${st.days > n ? `<div class="notice" style="margin-top:4px">You've got ${st.days - n} extra day${st.days - n > 1 ? 's' : ''} — add a buffer day, or tell us on WhatsApp and we'll extend the route.</div>` : ''}
+      ${matchTrip ? `<div class="match rv">${imgTag(matchTrip.image, matchTrip.seed, matchTrip.name)}<div style="flex:1"><div class="eyebrow plain" style="font-size:11px">Cartel trip that matches this</div><b style="font-family:var(--font-display);font-size:24px;display:block">${esc(matchTrip.name)}</b><span class="muted" style="font-size:13px">${esc(matchTrip.dateText)} · ${matchTrip.price ? inr(matchTrip.price) : 'Price soon'} · ${slotsLeft(matchTrip)} spots left</span></div><a class="btn btn-red btn-sm" href="trip.html?id=${matchTrip.id}">Book it →</a></div>` : ''}
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:22px">
+        <a class="btn btn-wa" href="${waLink('Hi Escape Cartel! Can you make this happen for my group?\n\n' + text)}" target="_blank" rel="noopener">Send plan to Escape Cartel on WhatsApp</a>
+        <button class="btn btn-ghost" id="copy">Copy plan</button>
+      </div>`;
+    $('#copy').onclick = () => { navigator.clipboard?.writeText(text); toast('Plan copied'); };
+    if (window.innerWidth < 1024) $('#out').scrollIntoView({ behavior: 'smooth' });
+  }
+  $('#go').onclick = plan;
+});
+</script>
+</body>
+</html>

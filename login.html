@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Login | Escape Cartel</title>
+  <script src="assets/js/head.js?v=20260915d"></script>
+  <script src="assets/js/config.js?v=20260915d"></script>
+  <script src="assets/js/data.js?v=20260915d"></script>
+  <script src="assets/js/app.js?v=20260915d" defer></script>
+</head>
+<body>
+<section class="auth-layout">
+  <div class="auth-side"><img src="https://images.unsplash.com/photo-1519681393784-d120267933ba?w=1400&q=80" alt="" onerror="this.onerror=null;this.src='https://picsum.photos/seed/login/1200/1400'"><div><h2 class="display">Your cartel<br><span class="red">is out there.</span></h2><div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:20px"><span class="badge">900+ members</span><span class="badge">8 states explored</span><span class="badge">2 national awards</span></div></div></div>
+  <div class="auth-form"><div>
+    <h1 class="display">Welcome back.</h1><p class="muted" style="margin:0 0 26px">Your next escape is one login away.</p>
+    <form class="form" id="f" novalidate>
+      <div class="field"><label>Email</label><input type="email" id="email" placeholder="you@college.edu" required autocomplete="email"></div>
+      <div class="field"><label>Password <a href="#" id="forgot" class="dim" style="float:right;font-weight:600;text-transform:none;letter-spacing:0">Forgot password?</a></label><input type="password" id="pass" placeholder="Your secret ritual code" required autocomplete="current-password"></div>
+      <div class="notice bad" id="err" style="display:none"></div>
+      <button class="btn btn-red btn-lg btn-block" type="submit">Login to the Cartel →</button>
+    </form>
+    <div class="or">or</div>
+    <div class="tile" style="display:flex;justify-content:space-between;align-items:center;gap:14px"><div><b>New to Escape Cartel?</b><div class="dim" style="font-size:13px">Join 900+ cartel members across India.</div></div><a class="btn btn-white btn-sm" id="join" href="signup.html">Join free →</a></div>
+  </div></div>
+</section>
+<script>
+document.addEventListener('app:ready', () => {
+  const { $, auth, param, toast, waLink } = App;
+  const next = param('next') || 'dashboard.html';
+  if (auth.current()) { location.href = next; return; }
+  $('#join').href = 'signup.html' + (param('next') ? '?next=' + encodeURIComponent(param('next')) : '');
+  $('#f').onsubmit = async e => { e.preventDefault(); const btn = $('#f button[type=submit]'); btn.disabled = true; btn.textContent = 'Logging in…'; try { await auth.login($('#email').value.trim(), $('#pass').value); toast('Welcome back!'); location.href = next; } catch (err) { $('#err').style.display = ''; $('#err').textContent = err.message; btn.disabled = false; btn.textContent = 'Login to the Cartel →'; } };
+  $('#forgot').onclick = e => { e.preventDefault(); window.open(waLink('Hi! I forgot my Escape Cartel password. My email is: ' + ($('#email').value || '')), '_blank'); };
+});
+</script>
+</body>
+</html>
