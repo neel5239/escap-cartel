@@ -253,6 +253,34 @@
     $$('[data-count]').forEach(el => cio.observe(el));
   }
 
+
+  /* ---------- site-wide calm backdrop: contour lines + dot grid + soft glow ---------- */
+  function initBackdrop() {
+    const cv = document.createElement('canvas'); cv.className = 'site-fx'; cv.setAttribute('aria-hidden', 'true'); document.body.prepend(cv);
+    const ctx = cv.getContext('2d'); const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+    let W = 0, H = 0, t = 0, last = 0, grid = null;
+    function size() {
+      const d = Math.min(devicePixelRatio || 1, 1.5); W = innerWidth; H = innerHeight; cv.width = Math.round(W * d); cv.height = Math.round(H * d); ctx.setTransform(d, 0, 0, d, 0, 0);
+      grid = document.createElement('canvas'); grid.width = cv.width; grid.height = cv.height; const g = grid.getContext('2d'); g.setTransform(d, 0, 0, d, 0, 0);
+      g.fillStyle = 'rgba(255,255,255,.07)'; for (let x = 14; x < W; x += 28) for (let y = 14; y < H; y += 28) { g.fillRect(x, y, 1, 1); }
+    }
+    function line(base, amp, freq, speed, col, lw) {
+      ctx.beginPath();
+      for (let x = 0; x <= W; x += 8) { const y = base + Math.sin(x * freq + t * speed) * amp + Math.sin(x * freq * 2.1 - t * speed * .7) * amp * .4; x ? ctx.lineTo(x, y) : ctx.moveTo(x, y); }
+      ctx.strokeStyle = col; ctx.lineWidth = lw; ctx.stroke();
+    }
+    function draw(now) {
+      if (now - last < 33) { requestAnimationFrame(draw); return; } last = now; t += reduce ? 0 : .012;
+      ctx.clearRect(0, 0, W, H); ctx.drawImage(grid, 0, 0, W, H);
+      const gx = W * (.15 + Math.sin(t * .15) * .06), gy = H * (.2 + Math.cos(t * .11) * .08);
+      const rg = ctx.createRadialGradient(gx, gy, 0, gx, gy, Math.max(W, H) * .5); rg.addColorStop(0, 'rgba(229,32,46,.17)'); rg.addColorStop(1, 'rgba(229,32,46,0)'); ctx.fillStyle = rg; ctx.fillRect(0, 0, W, H);
+      const n = 6; for (let i = 0; i < n; i++) line(H * (.12 + i * .15), 18 + i * 4, .0028 + i * .0002, .28 + i * .05, i === 3 ? 'rgba(229,32,46,.24)' : `rgba(255,255,255,${.06 + i * .008})`, 1);
+      if (!reduce) requestAnimationFrame(draw);
+    }
+    size(); addEventListener('resize', size, { passive: true }); requestAnimationFrame(draw);
+    document.addEventListener('visibilitychange', () => { if (!document.hidden && !reduce) { last = 0; requestAnimationFrame(draw); } });
+  }
+
   window.App = { $, $$, store, api, inr, esc, param, imgTag, fallback, trip, upcoming, slotsLeft, pctFilled, daysLeft, bookedCount, waLink, upiLink, auth, admin, saveBooking, myBookings, sendRequest, toast, tripCard, renderGallery, tickCountdowns, C, get online() { return online; } };
 
   /* ---------- bootstrap: pull live config + occupancy, then render ---------- */
@@ -261,7 +289,7 @@
     if (cfg.status === 'fulfilled' && cfg.value && typeof cfg.value === 'object') { online = true; window.EC.setServer(cfg.value); }
     if (cnt.status === 'fulfilled' && cnt.value) counts = cnt.value;
     if (online) await auth.refresh();
-    if (!document.body.classList.contains('no-chrome')) { const g = document.createElement('div'); g.className = 'bg-glow'; g.innerHTML = '<i></i><i></i>'; document.body.prepend(g); renderNav(); renderFooter(); renderNextBar(); }
+    if (!document.body.classList.contains('no-chrome')) { initBackdrop(); renderNav(); renderFooter(); renderNextBar(); }
     initReveal(); tickCountdowns(); setInterval(tickCountdowns, 1000);
     document.dispatchEvent(new Event('app:ready'));
   }
