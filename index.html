@@ -4,10 +4,10 @@
   <meta charset="UTF-8">
   <title>Escape Cartel — Not a tour. An escape. | Student Travel Community, Jaipur</title>
   <meta name="description" content="Escape Cartel plans treks, weekend escapes and multi-day trips for students. You start as strangers. You come back as a cartel.">
-  <script src="assets/js/head.js?v=20260915d"></script>
-  <script src="assets/js/config.js?v=20260915d"></script>
-  <script src="assets/js/data.js?v=20260915d"></script>
-  <script src="assets/js/app.js?v=20260915d" defer></script>
+  <script src="assets/js/head.js?v=20260915e"></script>
+  <script src="assets/js/config.js?v=20260915e"></script>
+  <script src="assets/js/data.js?v=20260915e"></script>
+  <script src="assets/js/app.js?v=20260915e" defer></script>
 </head>
 <body>
 
@@ -149,7 +149,7 @@ document.addEventListener('app:ready', () => {
   const cv = document.getElementById('hero-fx'); if (!cv) return;
   const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
   const ctx = cv.getContext('2d'); let W, H, t = 0, mx = 0, my = 0, tx = 0, ty = 0;
-  const P = Array.from({ length: 110 }, () => ({ x: Math.random(), y: Math.random(), r: Math.random() * 1.8 + .4, s: Math.random() * .25 + .08, o: Math.random() * .6 + .2, red: Math.random() < .28 }));
+  const P = Array.from({ length: 55 }, () => ({ x: Math.random(), y: Math.random(), r: Math.random() * 1.4 + .4, s: Math.random() * .16 + .05, o: Math.random() * .35 + .12, red: Math.random() < .25 }));
   function size() { const d = Math.min(devicePixelRatio || 1, 2); W = cv.clientWidth; H = cv.clientHeight; if (cv.width !== Math.round(W * d) || cv.height !== Math.round(H * d)) { cv.width = Math.round(W * d); cv.height = Math.round(H * d); } ctx.setTransform(d, 0, 0, d, 0, 0); }
   function ridge(base, amp, freq, speed, col, lw) {
     ctx.beginPath();
@@ -160,13 +160,13 @@ document.addEventListener('app:ready', () => {
     if (cv.clientWidth !== W || cv.clientHeight !== H) size();
     t += reduce ? 0 : .016; tx += (mx - tx) * .04; ty += (my - ty) * .04;
     ctx.clearRect(0, 0, W, H);
-    for (let i = 0; i < 7; i++) ridge(H * (.42 + i * .085), 26 + i * 9, .0045 - i * .0003, .55 + i * .12, `rgba(255,255,255,${.05 + i * .012})`, 1);
-    ridge(H * .78, 34, .0032, .9, 'rgba(229,32,46,.28)', 1.4);
+    for (let i = 0; i < 5; i++) ridge(H * (.5 + i * .09), 22 + i * 8, .0042 - i * .0003, .32 + i * .07, `rgba(255,255,255,${.035 + i * .01})`, 1);
+    ridge(H * .8, 28, .003, .5, 'rgba(229,32,46,.18)', 1.2);
     P.forEach(p => { p.y -= p.s * .0018; if (p.y < -.02) { p.y = 1.02; p.x = Math.random(); } const x = p.x * W + tx * (p.r * 8), y = p.y * H + ty * (p.r * 6); ctx.beginPath(); ctx.arc(x, y, p.r, 0, 6.283); ctx.fillStyle = p.red ? `rgba(255,59,71,${p.o})` : `rgba(255,255,255,${p.o * .8})`; ctx.fill(); });
     if (!reduce) requestAnimationFrame(frame);
   }
   size(); addEventListener('resize', size); if (window.ResizeObserver) new ResizeObserver(size).observe(cv); frame();
-  addEventListener('mousemove', e => { mx = (e.clientX / innerWidth - .5) * 24; my = (e.clientY / innerHeight - .5) * 24; }, { passive: true });
+  addEventListener('mousemove', e => { mx = (e.clientX / innerWidth - .5) * 12; my = (e.clientY / innerHeight - .5) * 12; }, { passive: true });
 })();
 </script>
 </body>
